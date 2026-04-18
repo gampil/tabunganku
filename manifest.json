@@ -1,0 +1,15 @@
+{
+  "name": "TabunganKu Digital",
+  "short_name": "TabunganKu",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10121/10121360.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
