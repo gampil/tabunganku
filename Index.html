@@ -1,1 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TabunganKu - Spreadsheet PWA</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased">
 
+    <div id="login-screen" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-8">
+        <div class="w-full max-w-sm text-center">
+            <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-200">
+                <i class="fa fa-wallet text-white text-2xl"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900 mb-8">TabunganKu</h2>
+            <input type="text" id="user-input" placeholder="Username" class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl mb-4 focus:outline-none focus:border-blue-500 text-center font-bold">
+            <button onclick="handleAuth('login')" id="btn-login" class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl mb-3 shadow-lg shadow-blue-100">Masuk</button>
+            <button onclick="handleAuth('register')" class="w-full text-blue-600 font-semibold py-2 text-sm">Daftar Akun Baru</button>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden max-w-md mx-auto min-h-screen flex flex-col p-5">
+        <header class="flex justify-between items-center py-6">
+            <div>
+                <h1 id="welcome-user" class="text-xl font-black text-slate-900">Halo!</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Dashboard Tabungan</p>
+            </div>
+            <button onclick="logout()" class="text-rose-500 bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold">Logout</button>
+        </header>
+
+        <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-200 mb-6">
+            <p class="text-xs opacity-70 mb-1">Total Saldo</p>
+            <h2 id="total-saldo" class="text-3xl font-bold">Rp 0</h2>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-8 text-center">
+            <div class="bg-white p-4 rounded-2xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Masuk</p><p id="total-masuk" class="text-emerald-600 font-bold">Rp 0</p></div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Keluar</p><p id="total-keluar" class="text-rose-500 font-bold">Rp 0</p></div>
+        </div>
+
+        <section class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm mb-8">
+            <div class="space-y-4">
+                <input type="number" id="input-nominal" placeholder="Nominal" class="w-full px-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:border-blue-500 font-bold">
+                <input type="text" id="input-ket" placeholder="Keterangan" class="w-full px-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:border-blue-500">
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="tambahTransaksi('masuk')" class="bg-emerald-500 text-white font-bold py-4 rounded-2xl transition-all active:scale-95">Masuk</button>
+                    <button onclick="tambahTransaksi('keluar')" class="bg-slate-900 text-white font-bold py-4 rounded-2xl transition-all active:scale-95">Keluar</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="pb-10">
+            <h3 class="font-bold text-slate-700 mb-5">Riwayat</h3>
+            <div id="list-transaksi" class="space-y-3">Memuat data...</div>
+        </section>
+    </div>
+
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+            <h3 class="font-bold text-lg mb-4 text-center">Edit Transaksi</h3>
+            <input type="hidden" id="edit-id">
+            <div class="space-y-4">
+                <input type="number" id="edit-nominal" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:border-blue-500 font-bold">
+                <input type="text" id="edit-ket" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:border-blue-500">
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="closeEdit()" class="bg-slate-100 text-slate-600 font-bold py-3 rounded-2xl">Batal</button>
+                    <button onclick="simpanEdit()" class="bg-blue-600 text-white font-bold py-3 rounded-2xl">Simpan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzTkUtjIPSV1H0AjeB3sth7BJgIoNcpRnhotioY_IwjmEESFpHtOQ3UFUD_ztj8EE_00w/exec'; // Masukkan URL deployment Apps Script kamu
+        let currentUser = localStorage.getItem('active_user') || null;
+        let dataTabungan = [];
+
+        if (currentUser) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('welcome-user').innerText = `Halo, ${currentUser}!`;
+            loadData();
+        }
+
+        async function handleAuth(action) {
+            const username = document.getElementById('user-input').value.trim();
+            if (!username) return alert("Username kosong!");
+            try {
+                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action, username }) });
+                const res = await response.json();
+                if (res.success) { localStorage.setItem('active_user', username); location.reload(); }
+                else { alert(action === 'login' ? "User tidak ada!" : "User sudah ada!"); }
+            } catch (e) { alert("Error koneksi!"); }
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'load', username: currentUser }) });
+                dataTabungan = await response.json();
+                updateUI();
+            } catch (e) { document.getElementById('list-transaksi').innerText = "Gagal memuat."; }
+        }
+
+        async function tambahTransaksi(tipe) {
+            const nominal = parseInt(document.getElementById('input-nominal').value);
+            const keterangan = document.getElementById('input-ket').value;
+            if (!nominal || !keterangan) return alert("Data tidak lengkap!");
+
+            const item = { action: 'save', username: currentUser, nominal, keterangan, tipe, 
+                tanggal: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) };
+            
+            document.getElementById('list-transaksi').innerHTML = "Menyimpan...";
+            await fetch(scriptURL, { method: 'POST', body: JSON.stringify(item) });
+            document.getElementById('input-nominal').value = ''; document.getElementById('input-ket').value = '';
+            loadData();
+        }
+
+        function updateUI() {
+            const listEl = document.getElementById('list-transaksi');
+            let masuk = 0, keluar = 0;
+            listEl.innerHTML = '';
+
+            [...dataTabungan].reverse().forEach(item => {
+                const isMasuk = item.tipe === 'masuk';
+                if (isMasuk) masuk += item.nominal; else keluar += item.nominal;
+                listEl.innerHTML += `
+                    <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-50 animate-fade-in shadow-sm">
+                        <div class="flex items-center gap-4 text-left">
+                            <div class="${isMasuk ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'} w-10 h-10 flex items-center justify-center rounded-xl text-xs">
+                                <i class="fa ${isMasuk ? 'fa-arrow-down' : 'fa-arrow-up'}"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-800 text-sm">${item.keterangan}</p>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase">${item.tanggal}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <p class="font-extrabold text-sm ${isMasuk ? 'text-emerald-600' : 'text-rose-500'}">${isMasuk?'+':'-'} ${item.nominal.toLocaleString('id-ID')}</p>
+                            <button onclick="showOptions(${item.id}, ${item.nominal}, '${item.keterangan}')" class="text-slate-300"><i class="fa fa-ellipsis-v"></i></button>
+                        </div>
+                    </div>`;
+            });
+
+            document.getElementById('total-saldo').innerText = "Rp " + (masuk - keluar).toLocaleString('id-ID');
+            document.getElementById('total-masuk').innerText = "Rp " + masuk.toLocaleString('id-ID');
+            document.getElementById('total-keluar').innerText = "Rp " + keluar.toLocaleString('id-ID');
+        }
+
+        function showOptions(id, nominal, ket) {
+            const ask = confirm(`Aksi untuk "${ket}":\nOK = Edit\nCANCEL = Hapus`);
+            if (ask) {
+                document.getElementById('edit-id').value = id;
+                document.getElementById('edit-nominal').value = nominal;
+                document.getElementById('edit-ket').value = ket;
+                document.getElementById('edit-modal').classList.remove('hidden');
+            } else { if (confirm("Hapus transaksi ini?")) deleteData(id); }
+        }
+
+        async function deleteData(id) {
+            document.getElementById('list-transaksi').innerHTML = "Menghapus...";
+            await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) });
+            loadData();
+        }
+
+        async function simpanEdit() {
+            const id = document.getElementById('edit-id').value;
+            const nominal = parseInt(document.getElementById('edit-nominal').value);
+            const keterangan = document.getElementById('edit-ket').value;
+            const tipe = dataTabungan.find(x => x.id == id).tipe;
+            closeEdit();
+            document.getElementById('list-transaksi').innerHTML = "Menyimpan...";
+            await fetch(scriptURL, { method: 'POST', body: JSON.stringify({ action: 'edit', id, nominal, keterangan, tipe }) });
+            loadData();
+        }
+
+        function closeEdit() { document.getElementById('edit-modal').classList.add('hidden'); }
+        function logout() { localStorage.removeItem('active_user'); location.reload(); }
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    </script>
+</body>
+</html>
